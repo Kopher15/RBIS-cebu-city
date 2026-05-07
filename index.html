@@ -280,7 +280,7 @@ footer a{color:var(--navy3)}
   </div>
   <div class="hdr-meta">
     <div class="mdate" id="dateDesktop"></div>
-    <div class="mlabel">Last Refresh</div>
+    <div class="mlabel">Last Updated</div>
   </div>
   <button class="btn-open-map" onclick="openMapModal()" style="margin-left:14px">🗺 Open Map</button>
 </header>
@@ -378,6 +378,7 @@ footer a{color:var(--navy3)}
 // ══════════════════════════════════════════════════════════════════════════
 const ROADS_GEOJSON_URL = 'data/roads.geojson';
 const COST_RATES_URL    = 'data/cost-rates.json';
+const LAST_SYNC_URL     = 'data/last-sync.json';
 
 let rawSegMap = {}; // road name → array of segment objects (used by table dropdowns)
 let rawLoaded = false;
@@ -393,6 +394,8 @@ let activeRates = RATES; // overwritten by loadCostRates() if JSON loads OK
 
 // ── Inspection completeness counters (populated by processGeoJSON) ──
 let inspStats = { fullyInspected: 0, totalSegs: 0 };
+// ── Last sync date (populated by loadData from last-sync.json) ──
+let lastSyncDate = null;
 
 // ── Condition normalization: empty/Unknown/For Evaluation → "For Inspection" ──
 function normalizeCondition(raw){
@@ -453,11 +456,12 @@ async function loadData(){
   setStep('Loading inventory…');
   showLoad();
   try {
-    // Fetch GeoJSON and cost rates in parallel
+    // Fetch GeoJSON, cost rates, and last-sync date in parallel
     setStep('Fetching road inventory & cost rates…');
-    const [geoRes, ratesRes] = await Promise.all([
+    const [geoRes, ratesRes, syncRes] = await Promise.all([
       fetch(ROADS_GEOJSON_URL, {cache:'no-cache'}),
-      fetch(COST_RATES_URL,    {cache:'no-cache'}).catch(e => null)
+      fetch(COST_RATES_URL,    {cache:'no-cache'}).catch(e => null),
+      fetch(LAST_SYNC_URL,     {cache:'no-cache'}).catch(e => null)
     ]);
 
     if(!geoRes.ok) throw new Error('roads.geojson HTTP ' + geoRes.status);
@@ -470,6 +474,20 @@ async function loadData(){
       } catch(e){ console.warn('cost-rates.json parse failed, using fallback RATES'); }
     } else {
       console.warn('cost-rates.json not available, using fallback RATES');
+    }
+
+    // Parse last-sync date (graceful fallback — bar shows "—" if file missing)
+    if(syncRes && syncRes.ok){
+      try {
+        const syncJson = await syncRes.json();
+        if(syncJson && syncJson.last_sync){
+          // Parse YYYY-MM-DD and format as "Month D, YYYY" e.g. "May 7, 2026"
+          const [y, m, d] = syncJson.last_sync.split('-').map(Number);
+          const months = ['January','February','March','April','May','June',
+                          'July','August','September','October','November','December'];
+          lastSyncDate = `${months[m-1]} ${d}, ${y}`;
+        }
+      } catch(e){ console.warn('last-sync.json parse failed'); }
     }
 
     setStep('Parsing GeoJSON…');
@@ -1104,8 +1122,11 @@ function condBadge(c){
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function set(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
 function setDate(){
-  const ds=new Date().toLocaleDateString('en-PH',{month:'long',day:'numeric',year:'numeric'});
-  set('dateInline',ds); set('dateDesktop',ds);
+  // Use the last sync date from last-sync.json (written by sync_orchestrator.py).
+  // Falls back to "—" if the file wasn't loaded — never shows today's date,
+  // which would be misleading (today ≠ when data was last updated).
+  const ds = lastSyncDate || '—';
+  set('dateInline', ds); set('dateDesktop', ds);
 }
 function showLoad(){document.getElementById('loading').classList.remove('hidden');}
 function hideLoad(){document.getElementById('loading').classList.add('hidden');}

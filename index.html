@@ -545,6 +545,8 @@ function processGeoJSON(features){
       brgys:new Set(), stype:new Set(),
       lenM:0, lenKm:0, segs:0,
       bad:0, poor:0, fair:0, good:0, inspect:0, cost:0,
+      costBad:0, costPoor:0, costFair:0, costGood:0,
+      lenBad:0, lenPoor:0, lenFair:0, lenGood:0, lenInspect:0,
       ridMin:Infinity, ridMax:-Infinity, rawSegs:[]
     };
     const rd = roadMap[name];
@@ -559,11 +561,11 @@ function processGeoJSON(features){
     const rid = parseInt(p.r_id) || 0;
     if(rid){ rd.ridMin = Math.min(rd.ridMin, rid); rd.ridMax = Math.max(rd.ridMax, rid); }
 
-    if(rcon === 'Bad')       rd.bad++;
-    else if(rcon === 'Poor') rd.poor++;
-    else if(rcon === 'Fair') rd.fair++;
-    else if(rcon === 'Good') rd.good++;
-    else                     rd.inspect++;
+    if(rcon === 'Bad')       { rd.bad++;     rd.costBad  += cost; rd.lenBad     += lenM/1000; }
+    else if(rcon === 'Poor') { rd.poor++;    rd.costPoor += cost; rd.lenPoor    += lenM/1000; }
+    else if(rcon === 'Fair') { rd.fair++;    rd.costFair += cost; rd.lenFair    += lenM/1000; }
+    else if(rcon === 'Good') { rd.good++;    rd.costGood += cost; rd.lenGood    += lenM/1000; }
+    else                     { rd.inspect++;                      rd.lenInspect += lenM/1000; }
 
     // Per-segment record (used by table dropdowns)
     const segRec = {
@@ -658,11 +660,7 @@ function renderKPIs(){
   let segs=0,len=0,bad=0,poor=0,fair=0,good=0,inspect=0,cost=0,brgys=new Set();
   allRoads.forEach(r=>{
     segs+=r.segs; len+=r.lenKm; cost+=r.cost;
-    if(r.genCon==='Bad')           bad+=r.segs;
-    else if(r.genCon==='Poor')     poor+=r.segs;
-    else if(r.genCon==='Fair')     fair+=r.segs;
-    else if(r.genCon==='Good')     good+=r.segs;
-    else                           inspect+=r.segs;
+    bad+=r.bad; poor+=r.poor; fair+=r.fair; good+=r.good; inspect+=r.inspect;
     (r.brgys||'').split(',').forEach(b=>{const t=b.trim();if(t)brgys.add(t);});
   });
   set('vSegs',segs.toLocaleString());
@@ -1051,10 +1049,12 @@ function showModal(type){
       </tbody></table>`);
   } else if(type==='cost'){
     const bycon={};
+    const costKey={bad:'costBad',poor:'costPoor',fair:'costFair',good:'costGood'};
+    const lenKey ={bad:'lenBad', poor:'lenPoor', fair:'lenFair', good:'lenGood'};
     allRoads.forEach(r=>{
       ['bad','poor','fair','good'].forEach(c=>{
         if(r[c]>0){if(!bycon[c])bycon[c]={roads:0,segs:0,len:0,cost:0};
-          bycon[c].roads++;bycon[c].segs+=r[c];bycon[c].len+=r.lenKm;bycon[c].cost+=r.cost;}
+          bycon[c].roads++;bycon[c].segs+=r[c];bycon[c].len+=r[lenKey[c]];bycon[c].cost+=r[costKey[c]];}
       });
     });
     const totCost=allRoads.reduce((a,r)=>a+r.cost,0);

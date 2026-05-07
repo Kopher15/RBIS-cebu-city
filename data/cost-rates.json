@@ -1,0 +1,45 @@
+{
+  "_comment": "DPWH unit cost rates in PHP. Cost = rate × length(m) × width(m). Edit values here, then commit and push — dashboard auto-reloads on page refresh. Keys are TitleCase to match normalized condition + surface values. Cost is computed only for segments that are FULLY INSPECTED (all 4 fields valid: r_con, s_type, r_length, r_width). Roads with any missing field show '—' in the cost column and are excluded from totals.",
+  "_last_updated": "2026-05-07",
+  "_source": "DPWH Standard Unit Cost Schedule",
+  "rates": {
+    "Bad": {
+      "Asphalt": 6500,
+      "Concrete": 8000,
+      "Gravel": 3500,
+      "Earth": 2500,
+      "Mixed": 5000,
+      "Unclassified": 5000
+    },
+    "Poor": {
+      "Asphalt": 1800,
+      "Concrete": 2200,
+      "Gravel": 900,
+      "Earth": 700,
+      "Mixed": 1200,
+      "Unclassified": 1200
+    },
+    "Fair": {
+      "Asphalt": 350,
+      "Concrete": 350,
+      "Gravel": 350,
+      "Earth": 350,
+      "Mixed": 350,
+      "Unclassified": 350
+    },
+    "Good": {
+      "Asphalt": 150,
+      "Concrete": 150,
+      "Gravel": 150,
+      "Earth": 150,
+      "Mixed": 150,
+      "Unclassified": 150
+    }
+  },
+  "interventions": {
+    "Bad": "Total Rehabilitation",
+    "Poor": "Minor Maintenance",
+    "Fair": "Routine Maintenance",
+    "Good": "Routine Maintenance"
+  }
+}

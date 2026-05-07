@@ -1,0 +1,25 @@
+# Node
+node_modules/
+**/node_modules/
+
+# Environment files (NEVER commit these)
+.env
+**/.env
+*.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build artifacts
+dist/
+build/

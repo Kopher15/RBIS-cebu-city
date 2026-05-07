@@ -1,0 +1,13 @@
+{
+  "name": "rbis-cebu-city-export",
+  "version": "1.0.0",
+  "description": "Export PostGIS road_inventory to GeoJSON for the public dashboard",
+  "private": true,
+  "scripts": {
+    "export": "node export-roads.js"
+  },
+  "dependencies": {
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1"
+  }
+}

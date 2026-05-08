@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Road Condition Report — City of Cebu</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --navy:#1a2a5e;--navy2:#1e3a7a;--navy3:#2b4fa8;
+  --gold:#f5c518;
+  --bad:#e53935;--poor:#fb8c00;--fair:#e5c200;--good:#43a047;--inspect:#78909c;
+  --surface:#f4f6fb;--surface2:#eaf0ff;--white:#fff;
+  --text:#1a2a5e;--muted:#6b7a9e;--border:#d0daee;
+  --shadow:0 2px 16px rgba(26,42,94,.09);--r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text);min-height:100vh}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,var(--navy3) 100%);
+  color:#fff;padding:0 28px;display:flex;align-items:center;gap:16px;
+  box-shadow:0 4px 20px rgba(26,42,94,.3);position:sticky;top:0;z-index:200;min-height:72px}
+.hdr-logos{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.hdr-logo{height:50px;width:50px;object-fit:contain}
+.hdr-div{width:1px;height:36px;background:rgba(255,255,255,.22);flex-shrink:0}
+.hdr-text{flex:1;min-width:0}
+.hdr-text h1{font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:800;
+  letter-spacing:.04em;text-transform:uppercase;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr-sub{font-size:.68rem;opacity:.65;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr-badge{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:20px;
+  padding:4px 12px;font-size:.68rem;font-weight:700;color:#fff;letter-spacing:.04em;flex-shrink:0}
+
+/* LOADING */
+.loading{position:fixed;inset:0;background:rgba(26,42,94,.9);display:flex;align-items:center;
+  justify-content:center;z-index:999;color:#fff;flex-direction:column;gap:16px}
+.loading.hidden{display:none}
+.spin{width:48px;height:48px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--gold);
+  border-radius:50%;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-steps{font-size:.78rem;opacity:.7;margin-top:4px}
+
+/* CALLOUT BANNER */
+.callout-banner{background:#e0f7fa;border-left:4px solid #0097a7;
+  padding:12px 20px;margin:0;display:flex;align-items:center;gap:12px;font-size:.82rem;color:#004d56}
+.callout-banner strong{color:#006064}
+.callout-icon{font-size:1.3rem;flex-shrink:0}
+
+/* MAIN */
+.main{padding:24px 28px;max-width:1400px;margin:0 auto}
+.sec{font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:800;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.sec::before{content:'';display:block;width:4px;height:18px;background:var(--navy3);border-radius:2px}
+
+/* KPI CARDS */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:14px;margin-bottom:28px}
+.kpi{background:#fff;border-radius:var(--r);padding:18px 16px;box-shadow:var(--shadow);
+  border-top:4px solid var(--navy3);cursor:pointer;transition:transform .15s,box-shadow .15s;user-select:none}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(26,42,94,.14)}
+.kpi.bad{border-top-color:var(--bad)}.kpi.poor{border-top-color:var(--poor)}
+.kpi.fair{border-top-color:var(--fair)}.kpi.good{border-top-color:var(--good)}
+.kpi.inspect{border-top-color:var(--inspect)}
+.kpi-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:6px}
+.kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:1.9rem;font-weight:800;color:var(--navy);line-height:1}
+.kpi-sub{font-size:.68rem;color:var(--muted);margin-top:4px}
+.kpi-hint{font-size:.62rem;color:var(--navy3);margin-top:6px;opacity:.8}
+.kpi-hint::before{content:"👆 "}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;
+  align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:var(--r);width:100%;max-width:960px;
+  box-shadow:0 16px 60px rgba(0,0,0,.25);overflow:hidden;margin:auto}
+.modal-hdr{background:var(--navy);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between}
+.modal-hdr h2{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.modal-close{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px}
+.modal-body{padding:20px;max-height:72vh;overflow-y:auto}
+
+/* INLINE MAP */
+#mapSection{margin-bottom:28px}
+.pub-map-wrap{position:relative;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);background:#e8eef7}
+#publicMap{width:100%;height:450px}
+.map-status{
+  position:absolute;top:12px;left:12px;z-index:500;
+  background:rgba(255,255,255,.96);padding:8px 14px;border-radius:6px;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);font-size:.82rem;font-weight:600;
+  color:var(--text);max-width:280px;pointer-events:none}
+.map-status.error{color:#c00;background:#fff3f3}
+.map-legend{
+  position:absolute;bottom:18px;right:12px;z-index:500;
+  background:rgba(255,255,255,.96);padding:10px 14px;border-radius:6px;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);font-size:.78rem;line-height:1.7}
+.map-legend strong{
+  font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;
+  font-size:.85rem;letter-spacing:.04em;color:var(--navy);display:block;margin-bottom:4px}
+.map-legend i{
+  display:inline-block;width:18px;height:4px;margin-right:8px;vertical-align:middle;border-radius:2px}
+
+/* CHARTS */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px}
+.chart-card{background:#fff;border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+.chart-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:14px}
+.chart-box{position:relative;height:210px}
+
+/* DISTRICT CARDS */
+.dist-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px}
+.dist-card{background:#fff;border-radius:var(--r);padding:16px;box-shadow:var(--shadow);border-left:5px solid var(--navy3)}
+.dist-card.north{border-left-color:#1565c0}.dist-card.south{border-left-color:#2e7d32}.dist-card.unspec{border-left-color:var(--muted)}
+.dist-name{font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:800;color:var(--navy);text-transform:uppercase;margin-bottom:8px}
+.dist-stats{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.ds{font-size:.72rem}.ds-v{font-weight:700;color:var(--navy)}.ds-l{color:var(--muted)}
+.cond-bar{display:flex;height:7px;border-radius:4px;overflow:hidden;gap:1px;margin-top:8px}
+.cb-bad{background:var(--bad)}.cb-poor{background:var(--poor)}.cb-fair{background:var(--fair)}.cb-good{background:var(--good)}
+
+/* TABLE */
+.tbl-card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin-bottom:28px}
+.tbl-toolbar{padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tbl-toolbar h3{font-family:'Barlow Condensed',sans-serif;font-size:.95rem;font-weight:800;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--navy);flex:1;min-width:140px}
+.srch{border:1.5px solid var(--border);border-radius:8px;padding:6px 11px;font-size:.8rem;
+  font-family:inherit;color:var(--text);outline:none;width:190px;background:var(--surface);transition:border-color .15s}
+.srch:focus{border-color:var(--navy3)}
+.sel{border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;font-size:.8rem;
+  font-family:inherit;color:var(--text);outline:none;background:var(--surface);cursor:pointer}
+.btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:.78rem;
+  font-family:inherit;cursor:pointer;font-weight:700;transition:background .15s;display:flex;align-items:center;gap:5px}
+.btn:hover{background:var(--navy3)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+th{background:var(--navy);color:#fff;padding:9px 12px;text-align:left;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.04em;font-size:.74rem;
+  text-transform:uppercase;cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{background:var(--navy3)}
+td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover>td{background:var(--surface2)}
+tr:last-child>td{border-bottom:none}
+.nr{text-align:right}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.67rem;font-weight:700;text-transform:uppercase}
+.bg-bad{background:#fdecea;color:#c62828}.bg-poor{background:#fff3e0;color:#e65100}
+.bg-fair{background:#fffde7;color:#b8860b}.bg-good{background:#e8f5e9;color:#2e7d32}
+.bg-insp{background:#eceff1;color:#546e7a}
+.expand-btn{background:none;border:none;cursor:pointer;font-size:.85rem;color:var(--navy3);
+  padding:0 4px;transition:transform .2s;display:inline-block}
+.expand-btn.open{transform:rotate(90deg)}
+.seg-row.hidden{display:none}
+.seg-row td{background:#f8faff;font-size:.72rem;padding:6px 12px}
+
+/* PAGINATION */
+.pagi{display:flex;align-items:center;gap:5px;padding:12px 18px;border-top:1px solid var(--border);
+  justify-content:flex-end;flex-wrap:wrap}
+.pg-btn{border:1.5px solid var(--border);background:#fff;border-radius:6px;padding:4px 9px;
+  font-size:.74rem;cursor:pointer;font-family:inherit;color:var(--text);transition:all .15s}
+.pg-btn:hover{background:var(--surface2);border-color:var(--navy3)}
+.pg-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+/* MODAL TABLE */
+.mtbl{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:10px}
+.mtbl th{background:var(--navy);color:#fff;padding:8px 12px;text-align:left;
+  font-size:.74rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em;cursor:pointer;user-select:none}
+.mtbl th:hover{background:var(--navy3)}
+.mtbl td{padding:7px 12px;border-bottom:1px solid var(--border)}
+.mtbl tr:hover td{background:var(--surface2)}
+.mtbl tr:last-child td{border-bottom:none}
+.mstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+.mstat{background:var(--surface);border-radius:8px;padding:10px 12px}
+.mstat-v{font-family:'Barlow Condensed',sans-serif;font-size:1.5rem;font-weight:800;color:var(--navy)}
+.mstat-l{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+
+/* ERROR BANNER */
+.err-banner{background:#fff3e0;border:1.5px solid #fb8c00;border-radius:10px;
+  padding:14px 18px;margin-bottom:20px;font-size:.82rem;color:#7f4600;display:none}
+.err-banner.show{display:block}
+
+footer{text-align:center;padding:18px;font-size:.68rem;color:var(--muted);border-top:1px solid var(--border)}
+footer a{color:var(--navy3)}
+
+/* ROAD NAME LINK */
+.rd-name-link{
+  color:var(--navy);font-weight:700;text-decoration:none;
+  border-bottom:1px dashed rgba(26,42,94,.35);transition:all .12s
+}
+.rd-name-link:hover{
+  color:var(--navy3);border-bottom-color:var(--navy3);
+  background:rgba(43,79,168,.06);padding:1px 4px;margin:-1px -4px;border-radius:3px
+}
+
+/* VIEW ON MAP BUTTON */
+.btn-view-seg{
+  background:var(--navy);color:#fff;border:none;
+  padding:4px 10px;border-radius:4px;font-size:.7rem;font-weight:600;
+  cursor:pointer;font-family:'DM Sans',sans-serif;
+  text-transform:uppercase;letter-spacing:.03em;transition:all .12s
+}
+.btn-view-seg:hover{background:var(--navy3);transform:translateY(-1px);box-shadow:0 2px 6px rgba(43,79,168,.3)}
+.btn-view-seg:active{transform:translateY(0)}
+
+/* REPORT CONCERN BUTTON */
+.btn-report-seg{
+  background:#e0f7fa;color:#006064;border:1.5px solid #0097a7;
+  padding:4px 10px;border-radius:4px;font-size:.7rem;font-weight:600;
+  cursor:pointer;text-transform:uppercase;letter-spacing:.03em;
+  transition:all .12s;margin-left:4px
+}
+.btn-report-seg:hover{background:#b2ebf2;transform:translateY(-1px)}
+.btn-report-seg:active{transform:translateY(0)}
+
+/* RESPONSIVE */
+@media(max-width:1100px){.charts-grid{grid-template-columns:1fr}}
+@media(max-width:860px){.dist-grid{grid-template-columns:1fr 1fr}.charts-grid{grid-template-columns:1fr}}
+@media(max-width:600px){
+  .hdr{padding:0 12px;gap:10px;min-height:66px}
+  .hdr-text h1{font-size:1rem}
+  .main{padding:14px 12px}
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .dist-grid{grid-template-columns:1fr}
+  #publicMap{height:320px}
+  .callout-banner{font-size:.76rem}
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fi{animation:fadeIn .35s ease forwards}
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="spin"></div>
+  <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;letter-spacing:.05em">Loading Road Inventory…</div>
+  <div class="load-steps" id="loadStep">Connecting…</div>
+</div>
+
+<header class="hdr">
+  <div class="hdr-text">
+    <h1>Road Condition Report · City of Cebu</h1>
+    <div class="hdr-sub">City Engineer's Office · City Government of Cebu · Public Road Inventory</div>
+  </div>
+  <div class="hdr-badge">Public Portal</div>
+</header>
+
+<div class="callout-banner">
+  <span class="callout-icon">📢</span>
+  <div>
+    <strong>See a damaged road in your community?</strong>
+    Expand any road in the list below and click <strong>Report Concern</strong> to send your report directly to the City Engineer's Office.
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 id="modalTitle">Detail</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="err-banner" id="errBanner"></div>
+
+  <div class="sec">Overview at a Glance</div>
+  <div class="kpi-grid fi">
+    <div class="kpi"        onclick="scrollToTable()"><div class="kpi-label">Total Road Segments</div><div class="kpi-val" id="vSegs">—</div><div class="kpi-sub">City-wide inventory</div><div class="kpi-hint">View road list</div></div>
+    <div class="kpi"        onclick="showModal('length')"><div class="kpi-label">Total Length</div><div class="kpi-val" id="vLen">—</div><div class="kpi-sub">Kilometers surveyed</div><div class="kpi-hint">By classification</div></div>
+    <div class="kpi"        onclick="showModal('barangays')"><div class="kpi-label">Barangays Served</div><div class="kpi-val" id="vBrgy">—</div><div class="kpi-sub">Covered barangays</div><div class="kpi-hint">Priority summary</div></div>
+    <div class="kpi bad"    onclick="showModal('bad')"><div class="kpi-label">Bad Condition</div><div class="kpi-val" id="vBad" style="color:var(--bad)">—</div><div class="kpi-sub">Total rehab needed</div><div class="kpi-hint">View road segments</div></div>
+    <div class="kpi poor"   onclick="showModal('poor')"><div class="kpi-label">Poor Condition</div><div class="kpi-val" id="vPoor" style="color:var(--poor)">—</div><div class="kpi-sub">Minor maintenance</div><div class="kpi-hint">View road segments</div></div>
+    <div class="kpi fair"   onclick="showModal('fair')"><div class="kpi-label">Fair Condition</div><div class="kpi-val" id="vFair" style="color:#b8a000">—</div><div class="kpi-sub">Routine maintenance</div><div class="kpi-hint">View road segments</div></div>
+    <div class="kpi good"   onclick="showModal('good')"><div class="kpi-label">Good Condition</div><div class="kpi-val" id="vGood" style="color:var(--good)">—</div><div class="kpi-sub">Preventive only</div><div class="kpi-hint">View road segments</div></div>
+    <div class="kpi inspect" onclick="showModal('inspect')"><div class="kpi-label">For Inspection</div><div class="kpi-val" id="vInsp" style="color:var(--inspect)">—</div><div class="kpi-sub">Needs classification</div><div class="kpi-hint">View road segments</div></div>
+  </div>
+
+  <div id="mapSection">
+    <div class="sec">Road Network Map</div>
+    <div class="pub-map-wrap fi">
+      <div id="publicMap"></div>
+      <div class="map-status" id="mapStatus">Initializing map…</div>
+      <div class="map-legend">
+        <strong>Condition</strong>
+        <div><i style="background:#43a047"></i>Good</div>
+        <div><i style="background:#e5c200"></i>Fair</div>
+        <div><i style="background:#fb8c00"></i>Poor</div>
+        <div><i style="background:#e53935"></i>Bad</div>
+        <div><i style="background:#78909c"></i>For Inspection</div>
+      </div>
+    </div>
+    <div style="margin-top:8px;font-size:.72rem;color:var(--muted);text-align:right">
+      Tip: Click a road name or <strong>View on Map</strong> in the road list below to highlight and zoom to it on the map.
+    </div>
+  </div>
+
+  <div class="sec">Road Condition Analytics</div>
+  <div class="charts-grid fi">
+    <div class="chart-card"><div class="chart-title">Condition Breakdown (by Segment)</div><div class="chart-box"><canvas id="chartCond"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Surface Type Distribution</div><div class="chart-box"><canvas id="chartSurf"></canvas></div></div>
+  </div>
+
+  <div class="sec">By District</div>
+  <div class="dist-grid fi" id="distGrid"></div>
+
+  <div class="sec" id="tblAnchor">Road Inventory</div>
+  <div class="tbl-card fi">
+    <div class="tbl-toolbar">
+      <h3>🛣 Roads &amp; Segments</h3>
+      <input class="srch" id="rdSearch" placeholder="Search road name…" oninput="filterRoads()">
+      <select class="sel" id="rdClass"  onchange="filterRoads()"><option value="">All Classes</option></select>
+      <select class="sel" id="rdCond"   onchange="filterRoads()">
+        <option value="">All Conditions</option>
+        <option>Bad</option><option>Poor</option><option>Fair</option>
+        <option>Good</option><option>For Inspection</option>
+      </select>
+      <select class="sel" id="rdDist"   onchange="filterRoads()">
+        <option value="">All Districts</option>
+        <option value="NORTH">North</option><option value="SOUTH">South</option>
+      </select>
+      <button class="btn" onclick="loadData()">↻ Refresh</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:28px"></th>
+          <th onclick="srt('name')">Road Name ↕</th>
+          <th onclick="srt('cls')">Classification ↕</th>
+          <th onclick="srt('len')" class="nr">Length (km) ↕</th>
+          <th onclick="srt('cond')">Gen. Condition ↕</th>
+          <th onclick="srt('segs')" class="nr">Segments ↕</th>
+          <th onclick="srt('dist')">District ↕</th>
+          <th onclick="srt('brgy')">Barangay(s) ↕</th>
+        </tr></thead>
+        <tbody id="rdBody"></tbody>
+      </table>
+    </div>
+    <div class="pagi" id="rdPagi"></div>
+  </div>
+</div>
+
+<footer>
+  City Engineer's Office &nbsp;·&nbsp; City Government of Cebu &nbsp;·&nbsp; Bagong Pilipinas
+  &nbsp;|&nbsp; Data reflects latest field inspection &nbsp;|&nbsp;
+  <a href="https://github.com/Kopher15/RBIS-cebu-city" target="_blank">Data Source</a>
+  &nbsp;|&nbsp; <a href="index.html">Executive Dashboard</a>
+</footer>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+//  DATA SOURCES
+// ══════════════════════════════════════════════════════════════════════════
+const ROADS_GEOJSON_URL = 'data/roads.geojson';
+const COST_RATES_URL    = 'data/cost-rates.json';
+
+let rawSegMap = {};
+let rawLoaded = false;
+let geoCache  = null;
+
+const RATES={Bad:{Asphalt:6500,Concrete:8000,Gravel:3500,Earth:2500,Mixed:5000,Unclassified:5000},
+  Poor:{Asphalt:1800,Concrete:2200,Gravel:900,Earth:700,Mixed:1200,Unclassified:1200},
+  Fair:{Asphalt:350,Concrete:350,Gravel:350,Earth:350,Mixed:350,Unclassified:350},
+  Good:{Asphalt:150,Concrete:150,Gravel:150,Earth:150,Mixed:150,Unclassified:150}};
+let activeRates = RATES;
+
+function normalizeCondition(raw){
+  const v = String(raw||'').trim();
+  if(!v) return 'For Inspection';
+  const low = v.toLowerCase();
+  if(low === 'unknown' || low === 'for evaluation') return 'For Inspection';
+  if(low === 'bad')  return 'Bad';
+  if(low === 'poor') return 'Poor';
+  if(low === 'fair') return 'Fair';
+  if(low === 'good') return 'Good';
+  return 'For Inspection';
+}
+
+function normalizeSurface(raw){
+  const v = String(raw||'').trim();
+  if(!v) return 'Unclassified';
+  const low = v.toLowerCase();
+  if(low === 'asphalt')  return 'Asphalt';
+  if(low === 'concrete') return 'Concrete';
+  if(low === 'gravel')   return 'Gravel';
+  if(low === 'earth')    return 'Earth';
+  if(low === 'mixed')    return 'Mixed';
+  return 'Unclassified';
+}
+
+function calcSegmentCost(rcon, stype, lenM, width){
+  if(rcon === 'For Inspection') return 0;
+  if(stype === 'Unclassified')   return 0;
+  if(!(lenM > 0))                return 0;
+  if(!(width > 0))               return 0;
+  const tier = activeRates[rcon];
+  if(!tier) return 0;
+  const rate = tier[stype] || tier['Unclassified'] || 0;
+  return rate * lenM * width;
+}
+
+function isFullyInspected(rcon, stype, lenM, width){
+  return rcon !== 'For Inspection'
+      && stype !== 'Unclassified'
+      && lenM  > 0
+      && width > 0;
+}
+
+let allRoads=[],filtRoads=[],srtCol='len',srtDir=-1,pg=1;
+const PG=25;
+
+// ══════════════════════════════════════════════════════════════════════════
+//  MAIN LOADER
+// ══════════════════════════════════════════════════════════════════════════
+async function loadData(){
+  rawLoaded = false; rawSegMap = {}; geoCache = null;
+  setStep('Loading inventory…');
+  showLoad();
+  try {
+    setStep('Fetching road inventory & cost rates…');
+    const [geoRes, ratesRes] = await Promise.all([
+      fetch(ROADS_GEOJSON_URL, {cache:'no-cache'}),
+      fetch(COST_RATES_URL,    {cache:'no-cache'}).catch(e => null)
+    ]);
+
+    if(!geoRes.ok) throw new Error('roads.geojson HTTP ' + geoRes.status);
+
+    if(ratesRes && ratesRes.ok){
+      try {
+        const ratesJson = await ratesRes.json();
+        if(ratesJson && ratesJson.rates) activeRates = ratesJson.rates;
+      } catch(e){ console.warn('cost-rates.json parse failed, using fallback RATES'); }
+    }
+
+    setStep('Parsing GeoJSON…');
+    const geo = await geoRes.json();
+    if(!geo || !Array.isArray(geo.features)) throw new Error('Invalid GeoJSON structure');
+
+    geoCache = geo;
+    setStep('Processing ' + geo.features.length.toLocaleString() + ' segments…');
+    processGeoJSON(geo.features);
+
+    hideLoad();
+    clearErr();
+    rawLoaded = true;
+  } catch(e) {
+    console.error('Data load failed:', e);
+    hideLoad();
+    showErr('⚠️ Could not load <code>data/roads.geojson</code>. Run <code>npm run export</code> in the scripts/ folder, then commit and push the data folder. Error: ' + e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  PROCESS GEOJSON
+// ══════════════════════════════════════════════════════════════════════════
+function processGeoJSON(features){
+  const roadMap = {};
+  rawSegMap = {};
+
+  features.forEach(feat => {
+    const p = feat.properties || {};
+    const lenM  = parseFloat(p.r_length) || 0;
+    const width = parseFloat(p.r_width)  || 0;
+    const stype = normalizeSurface(p.s_type);
+    const rcon  = normalizeCondition(p.r_con);
+    const name = String(p.r_name || '').trim().toUpperCase();
+    if(!name) return;
+
+    const cost  = calcSegmentCost(rcon, stype, lenM, width);
+
+    if(!roadMap[name]) roadMap[name] = {
+      name, rclass:'', rimp:'', dist:'',
+      brgys:new Set(), stype:new Set(),
+      lenM:0, lenKm:0, segs:0,
+      bad:0, poor:0, fair:0, good:0, inspect:0, cost:0,
+      costBad:0, costPoor:0, costFair:0, costGood:0,
+      lenBad:0, lenPoor:0, lenFair:0, lenGood:0, lenInspect:0,
+      ridMin:Infinity, ridMax:-Infinity, rawSegs:[]
+    };
+    const rd = roadMap[name];
+
+    if(!rd.rclass && p.r_class)    rd.rclass = String(p.r_class).trim();
+    if(!rd.rimp   && p.r_importan) rd.rimp   = String(p.r_importan).trim();
+    if(!rd.dist   && p.district)   rd.dist   = String(p.district).trim();
+    if(p.brgy_name) rd.brgys.add(String(p.brgy_name).trim());
+    if(stype && stype !== 'Unclassified') rd.stype.add(stype);
+
+    rd.lenM += lenM; rd.lenKm += lenM/1000; rd.segs++; rd.cost += cost;
+
+    const rid = parseInt(p.r_id) || 0;
+    if(rid){ rd.ridMin = Math.min(rd.ridMin, rid); rd.ridMax = Math.max(rd.ridMax, rid); }
+
+    if(rcon === 'Bad')       { rd.bad++;     rd.costBad  += cost; rd.lenBad     += lenM/1000; }
+    else if(rcon === 'Poor') { rd.poor++;    rd.costPoor += cost; rd.lenPoor    += lenM/1000; }
+    else if(rcon === 'Fair') { rd.fair++;    rd.costFair += cost; rd.lenFair    += lenM/1000; }
+    else if(rcon === 'Good') { rd.good++;    rd.costGood += cost; rd.lenGood    += lenM/1000; }
+    else                     { rd.inspect++;                      rd.lenInspect += lenM/1000; }
+
+    const segRec = {
+      rid: p.r_id || '—',
+      stype, rcon,
+      width: p.r_width || '—',
+      lenM,
+      brgy: p.brgy_name || '—',
+      dist: p.district  || '—',
+      remarks: p.remarks || '',
+      rclass: p.r_class  || '',
+      inspector: p.inspector || '—',
+      nlanes: p.n_lanes || '—'
+    };
+    rd.rawSegs.push(segRec);
+
+    if(!rawSegMap[name]) rawSegMap[name] = [];
+    rawSegMap[name].push(segRec);
+  });
+
+  allRoads = Object.values(roadMap).map(rd => {
+    const cls = rd.bad + rd.poor + rd.fair + rd.good;
+    let genCon = 'For Inspection';
+    if(cls > 0){
+      const sc = (rd.bad + rd.poor*2 + rd.fair*3 + rd.good*4) / cls;
+      if(sc <= 1.5) genCon = 'Bad';
+      else if(sc <= 2.5) genCon = 'Poor';
+      else if(sc <= 3.5) genCon = 'Fair';
+      else genCon = 'Good';
+    }
+    return {
+      ...rd,
+      genCon,
+      brgys: [...rd.brgys].join(', '),
+      stype: [...rd.stype].join(', ') || 'Unclassified',
+      ridRange: rd.ridMin === Infinity ? '' :
+                rd.ridMin === rd.ridMax ? String(rd.ridMin) :
+                rd.ridMin + '–' + rd.ridMax
+    };
+  });
+
+  buildAll();
+}
+
+function buildAll(){
+  renderKPIs();
+  renderCharts();
+  renderDistricts();
+  populateClassFilter();
+  filterRoads();
+  initPublicMap();
+}
+
+// ── KPIs ──
+function renderKPIs(){
+  let segs=0,len=0,bad=0,poor=0,fair=0,good=0,inspect=0,brgys=new Set();
+  allRoads.forEach(r=>{
+    segs+=r.segs; len+=r.lenKm;
+    bad+=r.bad; poor+=r.poor; fair+=r.fair; good+=r.good; inspect+=r.inspect;
+    (r.brgys||'').split(',').forEach(b=>{const t=b.trim();if(t)brgys.add(t);});
+  });
+  set('vSegs',segs.toLocaleString());
+  set('vLen',len.toFixed(1)+' km');
+  set('vBrgy',brgys.size);
+  set('vBad',bad.toLocaleString());
+  set('vPoor',poor.toLocaleString());
+  set('vFair',fair.toLocaleString());
+  set('vGood',good.toLocaleString());
+  set('vInsp',inspect.toLocaleString());
+}
+
+// ── Charts ──
+let charts={};
+function renderCharts(){
+  Object.values(charts).forEach(c=>c.destroy()); charts={};
+
+  const condCounts={Bad:0,Poor:0,Fair:0,Good:0,'For Inspection':0};
+  const surfCounts={};
+  allRoads.forEach(r=>{
+    condCounts[r.genCon]=(condCounts[r.genCon]||0)+r.segs;
+    (r.stype||'').split(',').forEach(s=>{const t=s.trim()||'Unclassified';surfCounts[t]=(surfCounts[t]||0)+r.segs;});
+  });
+
+  const condOrder=['Good','Fair','Poor','Bad','For Inspection'];
+  const condColors=['#43a047','#fdd835','#fb8c00','#e53935','#90a4ae'];
+  charts.cond=new Chart(document.getElementById('chartCond'),{type:'doughnut',
+    data:{labels:condOrder,datasets:[{data:condOrder.map(l=>condCounts[l]||0),
+      backgroundColor:condColors,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'bottom',labels:{font:{size:11,family:'DM Sans'},padding:7}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${(ctx.raw||0).toLocaleString()}`}}}}});
+
+  const surfLabels=Object.keys(surfCounts).sort((a,b)=>surfCounts[b]-surfCounts[a]);
+  const surfColors={Asphalt:'#37474f',Concrete:'#5c6bc0',Gravel:'#8d6e63',Unclassified:'#90a4ae',Earth:'#66bb6a',Mixed:'#ab47bc'};
+  charts.surf=new Chart(document.getElementById('chartSurf'),{type:'bar',
+    data:{labels:surfLabels,datasets:[{label:'Segments',data:surfLabels.map(l=>surfCounts[l]),
+      backgroundColor:surfLabels.map(l=>surfColors[l]||'#90a4ae'),borderRadius:4,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'#f0f0f0'},ticks:{font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+}
+
+// ── Districts ──
+function renderDistricts(){
+  const dm={};
+  allRoads.forEach(r=>{
+    const d=r.dist||'UNSPECIFIED';
+    if(!dm[d]) dm[d]={total:0,segs:0,bad:0,poor:0,fair:0,good:0,len:0};
+    dm[d].total++; dm[d].segs+=r.segs; dm[d].len+=r.lenKm;
+    dm[d].bad+=r.bad; dm[d].poor+=r.poor; dm[d].fair+=r.fair; dm[d].good+=r.good;
+  });
+  const cls={NORTH:'north',SOUTH:'south',UNSPECIFIED:'unspec'};
+  document.getElementById('distGrid').innerHTML=['NORTH','SOUTH','UNSPECIFIED']
+    .filter(d=>dm[d]).map(d=>{const v=dm[d];
+    return`<div class="dist-card ${cls[d]||''}">
+      <div class="dist-name">${d==='UNSPECIFIED'?'Unspecified':d} District</div>
+      <div class="dist-stats">
+        <div class="ds"><span class="ds-v">${v.total.toLocaleString()}</span><br><span class="ds-l">Roads</span></div>
+        <div class="ds"><span class="ds-v">${v.len.toFixed(1)} km</span><br><span class="ds-l">Length</span></div>
+        <div class="ds"><span class="ds-v" style="color:var(--bad)">${v.bad}</span><br><span class="ds-l">Bad</span></div>
+        <div class="ds"><span class="ds-v" style="color:var(--poor)">${v.poor}</span><br><span class="ds-l">Poor</span></div>
+        <div class="ds"><span class="ds-v" style="color:#b8a000">${v.fair}</span><br><span class="ds-l">Fair</span></div>
+        <div class="ds"><span class="ds-v" style="color:var(--good)">${v.good}</span><br><span class="ds-l">Good</span></div>
+      </div>
+      <div class="cond-bar">
+        <div class="cb-bad" style="flex:${v.bad}"></div>
+        <div class="cb-poor" style="flex:${v.poor}"></div>
+        <div class="cb-fair" style="flex:${v.fair}"></div>
+        <div class="cb-good" style="flex:${v.good}"></div>
+      </div>
+    </div>`}).join('');
+}
+
+// ── Road Table ──
+function populateClassFilter(){
+  const cls=[...new Set(allRoads.map(r=>r.rclass).filter(Boolean))].sort();
+  document.getElementById('rdClass').innerHTML='<option value="">All Classes</option>'+cls.map(c=>`<option>${c}</option>`).join('');
+}
+
+function filterRoads(){
+  const q=document.getElementById('rdSearch').value.toLowerCase();
+  const cl=document.getElementById('rdClass').value;
+  const co=document.getElementById('rdCond').value;
+  const di=document.getElementById('rdDist').value;
+  filtRoads=allRoads.filter(r=>
+    (!q||r.name.toLowerCase().includes(q)||(r.brgys||'').toLowerCase().includes(q))&&
+    (!cl||r.rclass===cl)&&(!co||r.genCon===co)&&(!di||r.dist===di));
+  pg=1; renderTable();
+}
+
+function srt(col){
+  if(srtCol===col) srtDir*=-1;
+  else{srtCol=col;srtDir=col==='len'||col==='segs'?-1:1;}
+  const map={name:'name',cls:'rclass',len:'lenKm',cond:'genCon',segs:'segs',dist:'dist',brgy:'brgys'};
+  const k=map[col]||col;
+  allRoads.sort((a,b)=>typeof a[k]==='number'?(a[k]-b[k])*srtDir:String(a[k]||'').localeCompare(String(b[k]||''))*srtDir);
+  filterRoads();
+}
+
+function renderTable(){
+  const start=(pg-1)*PG;
+  const page=filtRoads.slice(start,start+PG);
+  const tb=document.getElementById('rdBody');
+  tb.innerHTML='';
+  page.forEach((rd,idx)=>{
+    const rid='r'+(start+idx);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><button class="expand-btn" id="btn-${rid}" onclick="toggleSeg('${rid}',this)">▶</button></td>
+      <td><a href="javascript:void(0)" class="rd-name-link" onclick="highlightRoadOnMap('${esc(rd.name).replace(/'/g,"\\'")}')" title="View on map">&#128205; ${esc(rd.name)}</a></td>
+      <td>${rd.rclass?`<span class="badge bg-insp">${esc(rd.rclass)}</span>`:'—'}</td>
+      <td class="nr">${rd.lenKm.toFixed(3)}</td>
+      <td>${condBadge(rd.genCon)}</td>
+      <td class="nr">${rd.segs}</td>
+      <td>${rd.dist||'—'}</td>
+      <td style="font-size:.72rem">${esc(rd.brgys)||'—'}</td>`;
+    tb.appendChild(tr);
+
+    const sr=document.createElement('tr');
+    sr.className='seg-row hidden'; sr.id=rid+'-seg';
+    sr.dataset.roadName = rd.name;
+    sr.innerHTML=`<td></td><td colspan="7" style="padding:0" id="segcontent-${rid}">
+      <div style="padding:12px 16px;color:var(--muted);font-size:.78rem;font-style:italic">
+        Loading segment details…</div></td>`;
+    tb.appendChild(sr);
+  });
+  renderPagi();
+}
+
+function toggleSeg(id,btn){
+  const row=document.getElementById(id+'-seg');
+  if(!row) return;
+  const isOpen=!row.classList.contains('hidden');
+  row.classList.toggle('hidden',isOpen);
+  btn.classList.toggle('open',!isOpen);
+  if(!isOpen){ renderSegContent(id, row.dataset.roadName); }
+}
+
+function renderSegContent(id, roadName){
+  const container = document.getElementById('segcontent-'+id);
+  if(!container) return;
+
+  if(typeof mapState !== 'undefined' && mapState.geoLoaded && mapState.geojson){
+    const normName = (roadName||'').trim().toUpperCase().replace(/  +/g,' ');
+    const matches = (mapState.geojson.features || []).filter(function(f){
+      const p = f.properties || {};
+      const fn = String(p.r_name || '').trim().toUpperCase().replace(/  +/g,' ');
+      return fn === normName;
+    });
+
+    if(matches.length > 0){
+      const sorted = matches.slice().sort(function(a,b){
+        return (parseInt(a.id)||0) - (parseInt(b.id)||0);
+      });
+      const rows = sorted.map(function(f){
+        const p = f.properties || {};
+        const fid = f.id != null ? f.id : '—';
+        const lenM = (p.r_length != null && !isNaN(parseFloat(p.r_length))) ? parseFloat(p.r_length).toFixed(2) : '—';
+        const cond = p.r_con || 'For Inspection';
+        const stype = p.s_type || '—';
+        const rclass = p.r_class || '—';
+        const rimp = p.r_importan || '—';
+        const brgy = p.brgy_name || '—';
+        const dist = p.district || '—';
+        return '<tr>' +
+          '<td><strong>' + esc(String(fid)) + '</strong></td>' +
+          '<td>' + esc(stype) + '</td>' +
+          '<td>' + condBadge(cond) + '</td>' +
+          '<td style="text-align:right">' + lenM + '</td>' +
+          '<td>' + esc(brgy) + '</td>' +
+          '<td>' + esc(dist) + '</td>' +
+          '<td>' + (rclass !== '—' ? '<span class="badge bg-insp">' + esc(rclass) + '</span>' : '—') + '</td>' +
+          '<td>' + esc(rimp) + '</td>' +
+          '<td style="text-align:center">' +
+            '<button class="btn-view-seg" onclick="highlightSegmentOnMap(' + JSON.stringify(fid) + ')">View on Map</button>' +
+            '<button class="btn-report-seg" onclick="openReportModal(' + _jq(String(fid)) + ',' + _jq(p.r_name||roadName||'') + ',' + _jq(dist) + ',' + _jq(cond) + ')">Report Concern</button>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+
+      container.innerHTML =
+        '<div style="padding:8px 16px 4px;font-size:.74rem;color:var(--muted)">' +
+          '<strong style="color:var(--navy)">' + matches.length + '</strong> segment' + (matches.length===1?'':'s') + ' · ' +
+          'Click <em>View on Map</em> to zoom to a segment, or <em>Report Concern</em> to flag an issue.' +
+        '</div>' +
+        '<div style="overflow-x:auto">' +
+          '<table class="mtbl" style="margin:0;border-radius:0;font-size:.73rem">' +
+            '<thead><tr>' +
+              '<th>Segment ID</th>' +
+              '<th>Surface Type</th>' +
+              '<th>Condition</th>' +
+              '<th style="text-align:right">Length (m)</th>' +
+              '<th>Barangay</th>' +
+              '<th>District</th>' +
+              '<th>Classification</th>' +
+              '<th>Importance</th>' +
+              '<th style="text-align:center">Action</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+        '</div>';
+      return;
+    }
+  }
+
+  if(typeof mapState !== 'undefined' && !mapState.geoLoaded){
+    container.innerHTML =
+      '<div style="padding:12px 16px;color:var(--muted);font-size:.78rem">' +
+        '⏳ Loading map data for segment view… <a href="#" onclick="renderSegContent(\'' + id + '\',\'' + roadName.replace(/'/g,"\\'") + '\');return false" style="color:var(--navy3)">Retry</a>' +
+      '</div>';
+    if(typeof loadGeoJSON === 'function'){
+      loadGeoJSON().then(function(){
+        const stillOpen = document.getElementById(id+'-seg');
+        if(stillOpen && !stillOpen.classList.contains('hidden')){
+          renderSegContent(id, roadName);
+        }
+      }).catch(function(){
+        const stillOpen = document.getElementById(id+'-seg');
+        if(stillOpen && !stillOpen.classList.contains('hidden')){
+          renderSegContentCSV(id, roadName);
+        }
+      });
+    }
+    return;
+  }
+
+  renderSegContentCSV(id, roadName);
+}
+
+function renderSegContentCSV(id, roadName){
+  const container = document.getElementById('segcontent-'+id);
+  if(!container) return;
+  const normName = (roadName||'').trim().toUpperCase().replace(/  +/g,' ');
+  const segs = rawLoaded ? (rawSegMap[normName] || null) : null;
+  if(segs && segs.length > 0){
+    const sorted = segs.slice().sort((a,b)=>(parseInt(a.rid)||0)-(parseInt(b.rid)||0));
+    container.innerHTML = `<div style="padding:8px 16px 4px;font-size:.74rem;color:var(--muted)">
+      ⚠ Map data unavailable — showing survey data only
+    </div><div style="overflow-x:auto">
+      <table class="mtbl" style="margin:0;border-radius:0;font-size:.73rem">
+        <thead><tr>
+          <th>R_ID</th>
+          <th>Surface Type</th>
+          <th>Condition</th>
+          <th style="text-align:right">Width (m)</th>
+          <th style="text-align:right">Length (m)</th>
+          <th>Barangay</th>
+          <th>District</th>
+          <th style="text-align:center">Action</th>
+        </tr></thead>
+        <tbody>
+          ${sorted.map(s=>`<tr>
+            <td><strong>${esc(String(s.rid))}</strong></td>
+            <td>${esc(s.stype)}</td>
+            <td>${condBadge(s.rcon||'For Inspection')}</td>
+            <td style="text-align:right">${s.width}</td>
+            <td style="text-align:right">${s.lenM>0?s.lenM.toFixed(2):'—'}</td>
+            <td>${esc(s.brgy)}</td>
+            <td>${esc(s.dist)}</td>
+            <td style="text-align:center"><button class="btn-report-seg" onclick="openReportModal(${_jq(String(s.rid))},${_jq(roadName)},${_jq(s.dist)},${_jq(s.rcon||'For Inspection')})">Report Concern</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`;
+  } else if(!rawLoaded){
+    container.innerHTML = `<div style="padding:12px 16px;color:var(--muted);font-size:.78rem">
+      ⏳ Loading segment details… <a href="#" onclick="renderSegContentCSV('${id}','${roadName.replace(/'/g,"\\'")}');return false" style="color:var(--navy3)">Retry</a></div>`;
+    setTimeout(()=>{ const r2=document.getElementById(id+'-seg'); if(!r2||r2.classList.contains('hidden')) return; renderSegContentCSV(id,roadName); }, 2000);
+  } else {
+    const rd = allRoads.find(r=>r.name===roadName);
+    container.innerHTML = `<div style="padding:12px 16px;color:var(--muted);font-size:.78rem">
+      <strong>${rd?rd.segs:0} segment(s)</strong> — R_ID range: ${rd?rd.ridRange||'—':'—'}<br>
+      No detailed segment data found for this road.</div>`;
+  }
+}
+
+function renderPagi(){
+  const total=filtRoads.length,pages=Math.ceil(total/PG);
+  const s=(pg-1)*PG+1,e=Math.min(pg*PG,total);
+  let h=`<span style="font-size:.72rem;color:var(--muted);margin-right:auto">Showing ${s}–${e} of ${total} roads</span>`;
+  for(let i=1;i<=pages;i++){
+    if(i===1||i===pages||Math.abs(i-pg)<=1) h+=`<button class="pg-btn${i===pg?' active':''}" onclick="goPage(${i})">${i}</button>`;
+    else if(Math.abs(i-pg)===2) h+=`<span style="padding:0 3px;color:var(--muted)">…</span>`;
+  }
+  document.getElementById('rdPagi').innerHTML=h;
+}
+
+function goPage(p){pg=p;renderTable();document.getElementById('tblAnchor').scrollIntoView({behavior:'smooth',block:'start'});}
+function scrollToTable(){document.getElementById('tblAnchor').scrollIntoView({behavior:'smooth'});}
+
+// ── MODALS ──
+function showModal(type){
+  if(type==='length'){
+    const byClass={};
+    allRoads.forEach(r=>{const c=r.rclass||'Unclassified';if(!byClass[c])byClass[c]={len:0,roads:0};byClass[c].len+=r.lenKm;byClass[c].roads++;});
+    const tot=Object.values(byClass).reduce((a,v)=>a+v.len,0)||1;
+    openModal('Total Length by Road Classification',
+      `<div class="mstats">
+        <div class="mstat"><div class="mstat-v">${tot.toFixed(2)} km</div><div class="mstat-l">Total Length</div></div>
+        <div class="mstat"><div class="mstat-v">${allRoads.length.toLocaleString()}</div><div class="mstat-l">Unique Roads</div></div>
+      </div>
+      <table class="mtbl"><thead><tr><th onclick="srtModal(this,0)">Classification</th><th onclick="srtModal(this,1)" class="nr">Roads</th><th onclick="srtModal(this,2)" class="nr">Length (km)</th><th onclick="srtModal(this,3)" class="nr">% of Total</th></tr></thead><tbody>
+      ${Object.entries(byClass).sort((a,b)=>b[1].len-a[1].len).map(([c,v])=>
+        `<tr><td>${esc(c)}</td><td class="nr">${v.roads}</td><td class="nr">${v.len.toFixed(3)}</td><td class="nr">${(v.len/tot*100).toFixed(1)}%</td></tr>`).join('')}
+      </tbody></table>`);
+  } else if(type==='barangays'){
+    const bm={};
+    allRoads.forEach(r=>(r.brgys||'').split(',').forEach(b=>{
+      const t=b.trim();if(!t)return;
+      if(!bm[t])bm[t]={dist:r.dist||'',roads:0,bad:0,poor:0,fair:0,good:0,inspect:0,len:0};
+      bm[t].roads++;bm[t].bad+=r.bad;bm[t].poor+=r.poor;bm[t].fair+=r.fair;
+      bm[t].good+=r.good;bm[t].inspect+=r.inspect;bm[t].len+=r.lenKm;
+    }));
+    openModal('Barangay Summary',
+      `<div class="mstats">
+        <div class="mstat"><div class="mstat-v">${Object.keys(bm).length}</div><div class="mstat-l">Barangays</div></div>
+        <div class="mstat"><div class="mstat-v">${Object.values(bm).filter(v=>v.bad>0).length}</div><div class="mstat-l">w/ Bad Roads</div></div>
+      </div>
+      <table class="mtbl"><thead><tr>
+        <th onclick="srtModal(this,0)">Barangay</th><th onclick="srtModal(this,1)">District</th>
+        <th onclick="srtModal(this,2)" class="nr">Roads</th><th onclick="srtModal(this,3)" class="nr">Bad</th>
+        <th onclick="srtModal(this,4)" class="nr">Poor</th><th onclick="srtModal(this,5)" class="nr">Fair</th>
+        <th onclick="srtModal(this,6)" class="nr">Good</th><th onclick="srtModal(this,7)" class="nr">km</th>
+      </tr></thead><tbody>
+      ${Object.entries(bm).sort((a,b)=>b[1].bad-a[1].bad).map(([b,v])=>
+        `<tr><td>${esc(b)}</td><td>${v.dist||'—'}</td><td class="nr">${v.roads}</td>
+        <td class="nr" style="color:var(--bad);font-weight:700">${v.bad||'—'}</td>
+        <td class="nr" style="color:var(--poor);font-weight:700">${v.poor||'—'}</td>
+        <td class="nr" style="color:#b8a000;font-weight:700">${v.fair||'—'}</td>
+        <td class="nr" style="color:var(--good);font-weight:700">${v.good||'—'}</td>
+        <td class="nr">${v.len.toFixed(3)}</td></tr>`).join('')}
+      </tbody></table>`);
+  } else if(['bad','poor','fair','good','inspect'].includes(type)){
+    const label={bad:'Bad',poor:'Poor',fair:'Fair',good:'Good',inspect:'For Inspection'}[type];
+    const roads=allRoads.filter(r=>{
+      if(type==='inspect') return r.inspect>0;
+      return r[type]>0;
+    }).sort((a,b)=>b[type==='inspect'?'inspect':type]-a[type==='inspect'?'inspect':type]);
+    openModal(`${label} Condition — Roads`,
+      `<div class="mstats">
+        <div class="mstat"><div class="mstat-v">${roads.length.toLocaleString()}</div><div class="mstat-l">Roads Affected</div></div>
+        <div class="mstat"><div class="mstat-v">${roads.reduce((a,r)=>a+(r[type==='inspect'?'inspect':type]||0),0).toLocaleString()}</div><div class="mstat-l">Segments</div></div>
+        <div class="mstat"><div class="mstat-v">${roads.reduce((a,r)=>a+r.lenKm,0).toFixed(2)} km</div><div class="mstat-l">Total Length</div></div>
+      </div>
+      <table class="mtbl"><thead><tr>
+        <th onclick="srtModal(this,0)">Road Name</th><th onclick="srtModal(this,1)">District</th>
+        <th onclick="srtModal(this,2)">Barangay</th><th onclick="srtModal(this,3)">Surface</th>
+        <th onclick="srtModal(this,4)" class="nr">Segments</th><th onclick="srtModal(this,5)" class="nr">Length (km)</th>
+      </tr></thead><tbody>
+      ${roads.map(r=>`<tr>
+        <td><strong>${esc(r.name)}</strong></td><td>${r.dist||'—'}</td>
+        <td style="font-size:.72rem">${esc(r.brgys)||'—'}</td>
+        <td style="font-size:.72rem">${esc(r.stype)||'—'}</td>
+        <td class="nr">${r[type==='inspect'?'inspect':type]}</td>
+        <td class="nr">${r.lenKm.toFixed(3)}</td>
+      </tr>`).join('')}
+      </tbody></table>`);
+  }
+}
+
+function openModal(title,body){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalBody').innerHTML=body;
+  document.getElementById('modalBg').classList.add('open');
+}
+function closeModal(){document.getElementById('modalBg').classList.remove('open');}
+
+function srtModal(th,col){
+  const tb=th.closest('table').querySelector('tbody');
+  const rows=[...tb.querySelectorAll('tr')];
+  const asc=th.dataset.sort!=='asc'; th.dataset.sort=asc?'asc':'desc';
+  rows.sort((a,b)=>{
+    const av=a.cells[col]?.textContent.trim()||'',bv=b.cells[col]?.textContent.trim()||'';
+    const an=parseFloat(av.replace(/[^0-9.-]/g,'')),bn=parseFloat(bv.replace(/[^0-9.-]/g,''));
+    return(!isNaN(an)&&!isNaN(bn))?(asc?an-bn:bn-an):(asc?av.localeCompare(bv):bv.localeCompare(av));
+  });
+  rows.forEach(r=>tb.appendChild(r));
+}
+
+// ── Helpers ──
+function condBadge(c){
+  const m={Bad:'bg-bad',Poor:'bg-poor',Fair:'bg-fair',Good:'bg-good'};
+  return`<span class="badge ${m[c]||'bg-insp'}">${c||'For Inspection'}</span>`;
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function set(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
+function showLoad(){document.getElementById('loading').classList.remove('hidden');}
+function hideLoad(){document.getElementById('loading').classList.add('hidden');}
+function setStep(s){set('loadStep',s);}
+function showErr(msg){const el=document.getElementById('errBanner');el.innerHTML=msg;el.classList.add('show');}
+function clearErr(){document.getElementById('errBanner').classList.remove('show');}
+
+// ── INIT ──
+loadData();
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+//  MAP MODULE — inline map (targets #publicMap)
+// ══════════════════════════════════════════════════════════════════════════
+var MAP_API_URL = 'data/roads.geojson';
+
+var mapState = {
+  initialized: false,
+  geoLoaded: false,
+  map: null,
+  roadsLayer: null,
+  geojson: null,
+  baseLayers: null
+};
+
+function colorByCondition(c){
+  if(!c) return '#78909c';
+  var s = String(c).toLowerCase();
+  if(s.indexOf('good') !== -1) return '#43a047';
+  if(s.indexOf('fair') !== -1) return '#e5c200';
+  if(s.indexOf('poor') !== -1) return '#fb8c00';
+  if(s.indexOf('bad')  !== -1) return '#e53935';
+  return '#78909c';
+}
+
+function defaultStyle(feature){
+  var p = feature.properties || {};
+  return { color: colorByCondition(p.r_con), weight: 3, opacity: 0.85 };
+}
+
+function buildBasemaps(){
+  var streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+  });
+  var satellite = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 19, attribution: 'Tiles &copy; Esri' }
+  );
+  var hybridLabels = L.tileLayer(
+    'https://stamen-tiles.a.ssl.fastly.net/toner-labels/{z}/{x}/{y}.png',
+    { maxZoom: 19, attribution: '&copy; Stadia Maps, OSM contributors' }
+  );
+  var hybrid = L.layerGroup([satellite, hybridLabels]);
+  var topo = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 19, attribution: 'Tiles &copy; Esri' }
+  );
+  var light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap, &copy; CARTO'
+  });
+  var dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap, &copy; CARTO'
+  });
+  return {
+    'Streets': streets,
+    'Satellite': satellite,
+    'Hybrid (Sat + Labels)': hybrid,
+    'Topographic': topo,
+    'Light': light,
+    'Dark': dark
+  };
+}
+
+function setMapStatus(msg, isError){
+  var el = document.getElementById('mapStatus');
+  if(!el) return;
+  el.textContent = msg;
+  if(isError) el.classList.add('error');
+  else el.classList.remove('error');
+}
+
+function initPublicMap(){
+  if(mapState.initialized) return;
+  mapState.baseLayers = buildBasemaps();
+  mapState.map = L.map('publicMap', {
+    center: [10.3157, 123.8854],
+    zoom: 12,
+    layers: [mapState.baseLayers['Streets']]
+  });
+  L.control.layers(mapState.baseLayers, {}, { position: 'topright', collapsed: true })
+    .addTo(mapState.map);
+  mapState.initialized = true;
+  if(mapState.roadsLayer) mapState.roadsLayer.addTo(mapState.map);
+  if(!mapState.geoLoaded) loadGeoJSON();
+}
+
+function loadGeoJSON(){
+  if(mapState.geoLoaded) return Promise.resolve(mapState.geojson);
+
+  // Reuse geoCache if dashboard already loaded it (avoids second fetch)
+  var sourcePromise;
+  if(typeof geoCache !== 'undefined' && geoCache){
+    sourcePromise = Promise.resolve(geoCache);
+  } else {
+    setMapStatus('Fetching map data…');
+    sourcePromise = fetch(MAP_API_URL, {cache:'no-cache'}).then(function(r){
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  return sourcePromise
+    .then(function(geo){
+      mapState.geojson = geo;
+      var count = (geo.features || []).length;
+      setMapStatus('Rendering ' + count.toLocaleString() + ' road segments…');
+      mapState.roadsLayer = L.geoJSON(geo, {
+        style: defaultStyle,
+        onEachFeature: function(feature, layer){
+          var p = feature.properties || {};
+          var cond = p.r_con || 'For Inspection';
+          var html =
+            '<strong style="font-size:.85rem">' + (p.r_name || 'Unnamed') + '</strong><br>' +
+            '<span style="font-size:.78rem;color:#555">' +
+              'Condition: <b>' + cond + '</b><br>' +
+              'Surface: ' + (p.s_type || '—') + ' &nbsp;·&nbsp; ' +
+              'Length: ' + (p.r_length ? parseFloat(p.r_length).toFixed(0) + ' m' : '—') + '<br>' +
+              'Barangay: ' + (p.brgy_name || '—') + ' · ' + (p.district || '—') + ' District' +
+            '</span>';
+          layer.bindPopup(html);
+        }
+      });
+      if(mapState.map) mapState.roadsLayer.addTo(mapState.map);
+      try {
+        if(mapState.map) mapState.map.fitBounds(mapState.roadsLayer.getBounds(), { padding: [30, 30] });
+      } catch(e){ /* ignore */ }
+      mapState.geoLoaded = true;
+      setMapStatus(count.toLocaleString() + ' road segments loaded');
+      return geo;
+    })
+    .catch(function(err){
+      setMapStatus('Map data unavailable. ' + err.message, true);
+      throw err;
+    });
+}
+
+function scrollToMap(){
+  document.getElementById('mapSection').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+// ── HIGHLIGHT (road name) ──
+var HIGHLIGHT_COLOR = '#00bcd4';
+var HIGHLIGHT_WEIGHT = 6;
+var DIM_OPACITY = 0.18;
+
+function normalizeName(s){
+  return String(s || '').trim().toUpperCase().replace(/  +/g, ' ');
+}
+
+function applyRoadHighlight(roadName){
+  if(!mapState.roadsLayer || !mapState.geojson) return 0;
+  var target = normalizeName(roadName);
+  var matchedBounds = L.latLngBounds([]);
+  var matchCount = 0;
+
+  mapState.roadsLayer.eachLayer(function(layer){
+    var f = layer.feature;
+    var p = f ? (f.properties || {}) : {};
+    var fn = normalizeName(p.r_name || '');
+    if(fn === target){
+      layer.setStyle({ color: HIGHLIGHT_COLOR, weight: HIGHLIGHT_WEIGHT, opacity: 1 });
+      if(layer.bringToFront) layer.bringToFront();
+      try { matchedBounds.extend(layer.getBounds()); } catch(e){}
+      matchCount++;
+    } else {
+      var defStyle = defaultStyle(layer.feature);
+      layer.setStyle({ color: defStyle.color, weight: 2, opacity: DIM_OPACITY });
+    }
+  });
+
+  if(matchCount > 0 && matchedBounds.isValid()){
+    mapState.map.fitBounds(matchedBounds, { padding: [50, 50], maxZoom: 18 });
+    setMapStatus(matchCount + ' segment' + (matchCount === 1 ? '' : 's') + ' highlighted: ' + roadName);
+  } else {
+    setMapStatus('No segments matched "' + roadName + '"', true);
+  }
+  return matchCount;
+}
+
+// ── HIGHLIGHT (single segment by feature ID) ──
+function applySegmentHighlight(featureId){
+  if(!mapState.roadsLayer || !mapState.geojson) return 0;
+  var matchedBounds = L.latLngBounds([]);
+  var matched = false;
+  var matchedRoadName = null;
+
+  mapState.roadsLayer.eachLayer(function(layer){
+    var f = layer.feature;
+    var fid = f ? f.id : null;
+    var isMatch = (fid == featureId) || (String(fid) === String(featureId));
+    if(isMatch){
+      layer.setStyle({ color: HIGHLIGHT_COLOR, weight: HIGHLIGHT_WEIGHT, opacity: 1 });
+      if(layer.bringToFront) layer.bringToFront();
+      try {
+        matchedBounds.extend(layer.getBounds());
+      } catch(e){}
+      matched = true;
+      matchedRoadName = (f.properties && f.properties.r_name) || 'segment';
+    } else {
+      var defStyle = defaultStyle(layer.feature);
+      layer.setStyle({ color: defStyle.color, weight: 2, opacity: DIM_OPACITY });
+    }
+  });
+
+  if(matched && matchedBounds.isValid()){
+    mapState.map.fitBounds(matchedBounds, { padding: [80, 80], maxZoom: 19 });
+    setMapStatus('Segment ' + featureId + ' highlighted (' + matchedRoadName + ')');
+    return 1;
+  } else {
+    setMapStatus('Segment ' + featureId + ' not found on map', true);
+    return 0;
+  }
+}
+
+function resetMapHighlight(){
+  if(!mapState.roadsLayer) return;
+  mapState.roadsLayer.eachLayer(function(layer){
+    layer.setStyle(defaultStyle(layer.feature));
+  });
+  if(mapState.geojson){
+    var n = (mapState.geojson.features || []).length;
+    setMapStatus(n.toLocaleString() + ' road segments loaded');
+  }
+}
+
+function highlightRoadOnMap(roadName){
+  scrollToMap();
+  var attempts = 0;
+  var maxAttempts = 80;
+  function tryHighlight(){
+    if(mapState.geoLoaded && mapState.roadsLayer){
+      mapState.map.invalidateSize();
+      applyRoadHighlight(roadName);
+      return;
+    }
+    attempts++;
+    if(attempts >= maxAttempts){
+      setMapStatus('Map data did not load in time. Try clicking the road again.', true);
+      return;
+    }
+    setTimeout(tryHighlight, 100);
+  }
+  setTimeout(tryHighlight, 80);
+}
+
+function highlightSegmentOnMap(featureId){
+  scrollToMap();
+  var attempts = 0;
+  var maxAttempts = 80;
+  function tryHighlight(){
+    if(mapState.geoLoaded && mapState.roadsLayer){
+      mapState.map.invalidateSize();
+      applySegmentHighlight(featureId);
+      return;
+    }
+    attempts++;
+    if(attempts >= maxAttempts){
+      setMapStatus('Map data did not load in time. Try clicking again.', true);
+      return;
+    }
+    setTimeout(tryHighlight, 100);
+  }
+  setTimeout(tryHighlight, 80);
+}
+
+// ESC key closes modal
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    var bg = document.getElementById('modalBg');
+    if(bg && bg.classList.contains('open')) closeModal();
+  }
+});
+
+// ── REPORT CONCERN — opens Google Form in new tab ──
+var GOOGLE_FORM_URL  = 'https://docs.google.com/forms/d/e/1FAIpQLScT2ZAK_4U6l7aJfM_BoXRiUM8GlvCebPQVTfWHIki5iZrXPw/viewform';
+var ENTRY_ROAD_NAME  = 'entry.2119053156';
+var ENTRY_SEG_ID     = 'entry.51694474';
+var ENTRY_DISTRICT   = 'entry.241084234';
+var ENTRY_CONDITION  = 'entry.1727523304';
+
+function _jq(v){ return JSON.stringify(v).replace(/"/g,'&quot;'); }
+
+function openReportModal(segId, roadName, district, condition) {
+  var url = GOOGLE_FORM_URL
+    + '?' + ENTRY_ROAD_NAME + '=' + encodeURIComponent(roadName)
+    + '&' + ENTRY_SEG_ID   + '=' + encodeURIComponent(segId)
+    + '&' + ENTRY_DISTRICT + '=' + encodeURIComponent(district || '')
+    + '&' + ENTRY_CONDITION+ '=' + encodeURIComponent(condition || '');
+  window.open(url, '_blank');
+}
+</script>
+
+</body>
+</html>

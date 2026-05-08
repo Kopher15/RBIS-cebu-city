@@ -60,6 +60,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text
 .kpi.bad{border-top-color:var(--bad)}.kpi.poor{border-top-color:var(--poor)}
 .kpi.fair{border-top-color:var(--fair)}.kpi.good{border-top-color:var(--good)}
 .kpi.inspect{border-top-color:var(--inspect)}.kpi.cost{border-top-color:var(--gold)}
+.kpi.reports{border-top-color:#0097a7}
 .kpi-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:6px}
 .kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:1.9rem;font-weight:800;color:var(--navy);line-height:1}
 .kpi-sub{font-size:.68rem;color:var(--muted);margin-top:4px}
@@ -306,6 +307,19 @@ footer a{color:var(--navy3)}
   </div>
 </div>
 
+<!-- REPORTS MODAL -->
+<div class="modal-bg" id="reportsModalBg" onclick="if(event.target===this)closeReportsModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Public Road Concern Reports</h2>
+      <button class="modal-close" onclick="closeReportsModal()">✕</button>
+    </div>
+    <div class="modal-body" id="reportsModalBody">
+      <div style="text-align:center;padding:24px;color:var(--muted)">Loading reports…</div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL -->
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
@@ -331,6 +345,7 @@ footer a{color:var(--navy3)}
     <div class="kpi good"   onclick="showModal('good')"><div class="kpi-label">Good Condition</div><div class="kpi-val" id="vGood" style="color:var(--good)">—</div><div class="kpi-sub">Preventive only</div><div class="kpi-hint">View road segments</div></div>
     <div class="kpi inspect" onclick="showModal('inspect')"><div class="kpi-label">For Inspection</div><div class="kpi-val" id="vInsp" style="color:var(--inspect)">—</div><div class="kpi-sub">Needs classification</div><div class="kpi-hint">View road segments</div></div>
     <div class="kpi cost"   onclick="showModal('cost')"><div class="kpi-label">Est. Rehab Cost</div><div class="kpi-val" id="vCost" style="color:#8a6200;font-size:1.45rem">—</div><div class="kpi-sub">Philippine Peso</div><div class="kpi-hint">Cost breakdown</div></div>
+    <div class="kpi reports" onclick="showReportsModal()"><div class="kpi-label">Public Reports</div><div class="kpi-val" id="vReports" style="color:#0097a7">—</div><div class="kpi-sub">Citizen-reported concerns</div><div class="kpi-hint">View all reports</div></div>
   </div>
 
   <div class="sec">Road Condition Analytics</div>
@@ -512,6 +527,7 @@ async function loadData(){
     hideLoad();
     clearErr();
     rawLoaded = true;
+    fetchReports();
   } catch(e) {
     console.error('Data load failed:', e);
     hideLoad();
@@ -1463,8 +1479,94 @@ document.addEventListener('keydown', function(e){
   if(e.key === 'Escape'){
     var overlay = document.getElementById('mapModalOverlay');
     if(overlay && overlay.classList.contains('open')) closeMapModal();
+    var reportsBg = document.getElementById('reportsModalBg');
+    if(reportsBg && reportsBg.classList.contains('open')) closeReportsModal();
   }
 });
+
+// ── PUBLIC REPORTS KPI ──
+var REPORTS_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4fBCRA8vahmijPxf7Qdhz7shLsDXnSSHZcVvSr1RyjYPPJ5CSly6su762z4yiBYPLoPTVOtlhqAMc/pub?gid=1556442833&single=true&output=csv';
+var _reportsData = [];
+
+function _parseCSV(text) {
+  var rows = [], lines = text.split(/\r?\n/);
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i]; if (!line.trim()) continue;
+    var row = [], inQ = false, cur = '';
+    for (var j = 0; j < line.length; j++) {
+      var c = line[j];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { row.push(cur); cur = ''; }
+      else { cur += c; }
+    }
+    row.push(cur); rows.push(row);
+  }
+  return rows;
+}
+
+function fetchReports() {
+  fetch(REPORTS_CSV, {cache:'no-cache'})
+    .then(function(r){ return r.text(); })
+    .then(function(csv){
+      var rows = _parseCSV(csv);
+      if (rows.length < 1) return;
+      var hdrs = rows[0].map(function(h){ return h.trim().toLowerCase(); });
+      var iTs   = hdrs.findIndex(function(h){ return /timestamp/.test(h); });
+      var iRoad = hdrs.findIndex(function(h){ return /road.*name|road name/.test(h); });
+      var iSeg  = hdrs.findIndex(function(h){ return /segment.*id|segment id/.test(h); });
+      var iDist = hdrs.findIndex(function(h){ return /district/.test(h); });
+      var iCond = hdrs.findIndex(function(h){ return /condition/.test(h); });
+      var iDesc = hdrs.findIndex(function(h){ return /description/.test(h); });
+      _reportsData = rows.slice(1).filter(function(r){ return r.some(function(c){ return c.trim(); }); })
+        .map(function(r){
+          return {
+            timestamp: iTs   >= 0 ? r[iTs]   : '',
+            roadName:  iRoad >= 0 ? r[iRoad]  : '',
+            segId:     iSeg  >= 0 ? r[iSeg]   : '',
+            district:  iDist >= 0 ? r[iDist]  : '',
+            condition: iCond >= 0 ? r[iCond]  : '',
+            desc:      iDesc >= 0 ? r[iDesc]  : ''
+          };
+        });
+      document.getElementById('vReports').textContent = _reportsData.length;
+    })
+    .catch(function(){ /* silently fail — sheet may be empty */ });
+}
+
+function showReportsModal() {
+  var body = document.getElementById('reportsModalBody');
+  if (_reportsData.length === 0) {
+    body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted)">No reports submitted yet.</div>';
+  } else {
+    var rows = _reportsData.map(function(r){
+      return '<tr>' +
+        '<td style="font-size:.68rem;color:var(--muted);white-space:nowrap">' + esc(r.timestamp) + '</td>' +
+        '<td><strong>' + esc(r.roadName) + '</strong></td>' +
+        '<td>' + esc(r.segId) + '</td>' +
+        '<td>' + esc(r.district) + '</td>' +
+        '<td>' + condBadge(r.condition || 'For Inspection') + '</td>' +
+        '<td style="font-size:.78rem">' + esc(r.desc) + '</td>' +
+        '</tr>';
+    }).join('');
+    body.innerHTML =
+      '<div style="overflow-x:auto">' +
+      '<table class="mtbl" style="margin:0;border-radius:0;font-size:.73rem">' +
+        '<thead><tr>' +
+          '<th>Timestamp</th><th>Road Name</th><th>Segment ID</th>' +
+          '<th>District</th><th>Condition</th><th>Description</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table></div>' +
+      '<div style="padding:10px 4px 0;font-size:.7rem;color:var(--muted)">' +
+        _reportsData.length + ' report' + (_reportsData.length === 1 ? '' : 's') + ' submitted' +
+      '</div>';
+  }
+  document.getElementById('reportsModalBg').classList.add('open');
+}
+
+function closeReportsModal() {
+  document.getElementById('reportsModalBg').classList.remove('open');
+}
 
 // ── REPORT ISSUE — opens Google Form in new tab ──
 // After creating your Google Form, replace the values below:

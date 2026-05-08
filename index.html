@@ -198,6 +198,17 @@ footer a{color:var(--navy3)}
 .btn-view-seg:hover{background:var(--navy3);transform:translateY(-1px);box-shadow:0 2px 6px rgba(43,79,168,.3)}
 .btn-view-seg:active{transform:translateY(0)}
 
+/* ── REPORT ISSUE BUTTON ── */
+.btn-report-seg{
+  background:#fff;color:var(--navy);border:1.5px solid var(--navy);
+  padding:4px 10px;border-radius:4px;font-size:.7rem;font-weight:600;
+  cursor:pointer;text-transform:uppercase;letter-spacing:.03em;
+  transition:all .12s;margin-left:4px
+}
+.btn-report-seg:hover{background:var(--surface2);transform:translateY(-1px)}
+.btn-report-seg:active{transform:translateY(0)}
+
+
 /* ── MAP MODAL (D2) ── */
 .map-modal-overlay{
   position:fixed;inset:0;background:rgba(10,18,40,.78);z-index:2000;
@@ -852,7 +863,10 @@ function renderSegContent(id, roadName){
           '<td>' + esc(dist) + '</td>' +
           '<td>' + (rclass !== '—' ? '<span class="badge bg-insp">' + esc(rclass) + '</span>' : '—') + '</td>' +
           '<td>' + esc(rimp) + '</td>' +
-          '<td style="text-align:center"><button class="btn-view-seg" onclick="highlightSegmentOnMap(' + JSON.stringify(fid) + ')">View on Map</button></td>' +
+          '<td style="text-align:center">' +
+            '<button class="btn-view-seg" onclick="highlightSegmentOnMap(' + JSON.stringify(fid) + ')">View on Map</button>' +
+            '<button class="btn-report-seg" onclick="openReportModal(' + _jq(String(fid)) + ',' + _jq(p.r_name||roadName||'') + ',' + _jq(dist) + ',' + _jq(cond) + ')">Report Issue</button>' +
+          '</td>' +
         '</tr>';
       }).join('');
 
@@ -935,6 +949,7 @@ function renderSegContentCSV(id, roadName){
           <th>Importance</th>
           <th>Lanes</th>
           <th>Remarks</th>
+          <th style="text-align:center">Action</th>
         </tr></thead>
         <tbody>
           ${sorted.map(s=>`<tr>
@@ -949,6 +964,7 @@ function renderSegContentCSV(id, roadName){
             <td>${esc(s.rimp)}</td>
             <td style="text-align:right">${s.nlanes}</td>
             <td style="font-size:.68rem;color:var(--muted)">${esc(s.remarks)}</td>
+            <td style="text-align:center"><button class="btn-report-seg" onclick="openReportModal(${_jq(String(s.rid))},${_jq(roadName)},${_jq(s.dist)},${_jq(s.rcon||'For Inspection')})">Report Issue</button></td>
           </tr>`).join('')}
         </tbody>
       </table></div>`;
@@ -1243,6 +1259,7 @@ function initMap(){
   L.control.layers(mapState.baseLayers, {}, { position: 'topright', collapsed: true })
     .addTo(mapState.map);
   mapState.initialized = true;
+  if(mapState.roadsLayer) mapState.roadsLayer.addTo(mapState.map);
 }
 
 function loadGeoJSON(){
@@ -1279,9 +1296,10 @@ function loadGeoJSON(){
             '</table>';
           layer.bindPopup(html);
         }
-      }).addTo(mapState.map);
+      });
+      if(mapState.map) mapState.roadsLayer.addTo(mapState.map);
       try {
-        mapState.map.fitBounds(mapState.roadsLayer.getBounds(), { padding: [30, 30] });
+        if(mapState.map) mapState.map.fitBounds(mapState.roadsLayer.getBounds(), { padding: [30, 30] });
       } catch(e){
         // bounds may be invalid; ignore
       }
@@ -1447,6 +1465,31 @@ document.addEventListener('keydown', function(e){
     if(overlay && overlay.classList.contains('open')) closeMapModal();
   }
 });
+
+// ── REPORT ISSUE — opens Google Form in new tab ──
+// After creating your Google Form, replace the values below:
+//   GOOGLE_FORM_URL  — the /viewform URL of your published form
+//   ENTRY_ROAD_NAME  — entry ID for the "Road Name" field  (e.g. entry.123456789)
+//   ENTRY_SEG_ID     — entry ID for the "Segment ID" field
+//   ENTRY_DISTRICT   — entry ID for the "District" field
+//   ENTRY_CONDITION  — entry ID for the "Condition" field
+// To find entry IDs: open the form, right-click a field > Inspect, look for name="entry.XXXXXXXX"
+var GOOGLE_FORM_URL  = 'https://docs.google.com/forms/d/e/1FAIpQLScT2ZAK_4U6l7aJfM_BoXRiUM8GlvCebPQVTfWHIki5iZrXPw/viewform';
+var ENTRY_ROAD_NAME  = 'entry.2119053156';
+var ENTRY_SEG_ID     = 'entry.51694474';
+var ENTRY_DISTRICT   = 'entry.241084234';
+var ENTRY_CONDITION  = 'entry.1727523304';
+
+function _jq(v){ return JSON.stringify(v).replace(/"/g,'&quot;'); }
+
+function openReportModal(segId, roadName, district, condition) {
+  var url = GOOGLE_FORM_URL
+    + '?' + ENTRY_ROAD_NAME + '=' + encodeURIComponent(roadName)
+    + '&' + ENTRY_SEG_ID   + '=' + encodeURIComponent(segId)
+    + '&' + ENTRY_DISTRICT + '=' + encodeURIComponent(district || '')
+    + '&' + ENTRY_CONDITION+ '=' + encodeURIComponent(condition || '');
+  window.open(url, '_blank');
+}
 </script>
 
 </body>

@@ -709,7 +709,11 @@ function renderCharts(){
   const condCounts={Bad:0,Poor:0,Fair:0,Good:0,'For Inspection':0};
   const surfCounts={}; const brgyMap={};
   allRoads.forEach(r=>{
-    condCounts[r.genCon]=(condCounts[r.genCon]||0)+r.segs;
+    condCounts.Bad+=(r.bad||0);
+    condCounts.Poor+=(r.poor||0);
+    condCounts.Fair+=(r.fair||0);
+    condCounts.Good+=(r.good||0);
+    condCounts['For Inspection']+=(r.inspect||0);
     (r.stype||'').split(',').forEach(s=>{const t=s.trim()||'Unclassified';surfCounts[t]=(surfCounts[t]||0)+r.segs;});
     (r.brgys||'').split(',').forEach(b=>{const t=b.trim();if(t){brgyMap[t]=(brgyMap[t]||0)+r.cost;}});
   });

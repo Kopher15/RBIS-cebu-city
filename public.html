@@ -263,7 +263,7 @@ footer a{color:var(--navy3)}
   <div class="modal">
     <div class="modal-hdr">
       <h2 id="modalTitle">Detail</h2>
-      <button class="modal-close" onclick="closeModal()">âœ•</button>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
   </div>
@@ -327,19 +327,19 @@ footer a{color:var(--navy3)}
         <option value="">All Districts</option>
         <option value="NORTH">North</option><option value="SOUTH">South</option>
       </select>
-      <button class="btn" onclick="loadData()">â†» Refresh</button>
+      <button class="btn" onclick="loadData()">&#x21BB; Refresh</button>
     </div>
     <div class="tbl-wrap">
       <table>
         <thead><tr>
           <th style="width:28px"></th>
-          <th onclick="srt('name')">Road Name â†•</th>
-          <th onclick="srt('cls')">Classification â†•</th>
-          <th onclick="srt('len')" class="nr">Length (km) â†•</th>
-          <th onclick="srt('cond')">Gen. Condition â†•</th>
-          <th onclick="srt('segs')" class="nr">Segments â†•</th>
-          <th onclick="srt('dist')">District â†•</th>
-          <th onclick="srt('brgy')">Barangay(s) â†•</th>
+          <th onclick="srt('name')">Road Name &#x2195;</th>
+          <th onclick="srt('cls')">Classification &#x2195;</th>
+          <th onclick="srt('len')" class="nr">Length (km) &#x2195;</th>
+          <th onclick="srt('cond')">Gen. Condition &#x2195;</th>
+          <th onclick="srt('segs')" class="nr">Segments &#x2195;</th>
+          <th onclick="srt('dist')">District &#x2195;</th>
+          <th onclick="srt('brgy')">Barangay(s) &#x2195;</th>
         </tr></thead>
         <tbody id="rdBody"></tbody>
       </table>
@@ -669,7 +669,7 @@ function renderTable(){
   page.forEach((rd,idx)=>{
     const rid='r'+(start+idx);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td><button class="expand-btn" id="btn-${rid}" onclick="toggleSeg('${rid}',this)">â–¶</button></td>
+    tr.innerHTML=`<td><button class="expand-btn" id="btn-${rid}" onclick="toggleSeg('${rid}',this)">&#x25B6;</button></td>
       <td><a href="javascript:void(0)" class="rd-name-link" onclick="highlightRoadOnMap('${esc(rd.name).replace(/'/g,"\\'")}')" title="View on map">&#128205; ${esc(rd.name)}</a></td>
       <td>${rd.rclass?`<span class="badge bg-insp">${esc(rd.rclass)}</span>`:'—'}</td>
       <td class="nr">${rd.lenKm.toFixed(3)}</td>

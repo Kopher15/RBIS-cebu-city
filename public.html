@@ -275,6 +275,15 @@ footer a{color:var(--navy3)}
     <div class="kpi inspect" onclick="showModal('inspect')"><div class="kpi-label">For Inspection</div><div class="kpi-val" id="vInsp" style="color:var(--inspect)">—</div><div class="kpi-sub">Needs classification</div><div class="kpi-hint">View road segments</div></div>
   </div>
 
+  <div class="sec">Road Condition Analytics</div>
+  <div class="charts-grid fi">
+    <div class="chart-card"><div class="chart-title">Condition Breakdown (by Segment)</div><div class="chart-box"><canvas id="chartCond"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Surface Type Distribution</div><div class="chart-box"><canvas id="chartSurf"></canvas></div></div>
+  </div>
+
+  <div class="sec">By District</div>
+  <div class="dist-grid fi" id="distGrid"></div>
+
   <div id="mapSection">
     <div class="sec">Road Network Map</div>
     <div class="pub-map-wrap fi">
@@ -293,15 +302,6 @@ footer a{color:var(--navy3)}
       Tip: Click a road name or <strong>View on Map</strong> in the road list below to highlight and zoom to it on the map.
     </div>
   </div>
-
-  <div class="sec">Road Condition Analytics</div>
-  <div class="charts-grid fi">
-    <div class="chart-card"><div class="chart-title">Condition Breakdown (by Segment)</div><div class="chart-box"><canvas id="chartCond"></canvas></div></div>
-    <div class="chart-card"><div class="chart-title">Surface Type Distribution</div><div class="chart-box"><canvas id="chartSurf"></canvas></div></div>
-  </div>
-
-  <div class="sec">By District</div>
-  <div class="dist-grid fi" id="distGrid"></div>
 
   <div class="sec" id="tblAnchor">Road Inventory</div>
   <div class="tbl-card fi">

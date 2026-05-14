@@ -1,6 +1,6 @@
 {
-  "_comment": "Written by sync_orchestrator.py after every successful local sync. Commit this file to GitHub alongside roads.geojson.",
-  "last_sync": "2026-05-07",
-  "timestamp": "2026-05-07T13:43:33",
+  "_comment": "Written by sync_orchestrator.py after every successful local sync. Commit this file to GitHub alongside roads.geojson. The dashboard inspection bar reads last_sync to display 'Last updated <date>'.",
+  "last_sync": "2026-05-14",
+  "timestamp": "2026-05-14T08:16:29",
   "segments_updated": 7995
 }

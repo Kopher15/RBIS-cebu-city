@@ -1,3 +1,9 @@
 node_modules/
 .env
+.env*
 *.log
+.vercel
+
+# Local / nested worktrees — not part of the public dashboard deploy
+GIS_PIPELINE/
+gis-sync-patch/

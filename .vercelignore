@@ -1,0 +1,9 @@
+GIS_PIPELINE
+gis-sync-patch
+.git
+.claude
+**/node_modules
+**/.env
+**/.env.*
+**/__pycache__
+*.log

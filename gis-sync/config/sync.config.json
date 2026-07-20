@@ -1,0 +1,15 @@
+{
+  "gpkg_path": "E:\\NEW WORK FILES\\QGIS\\DEPW PROJECT MERGIN\\DEPW PROJECT MERGIN\\Roads2018.gpkg",
+  "layer_name": "Roads2018",
+  "log_dir": "C:\\gis-sync\\logs",
+  "destinations": [
+    {
+      "name": "local",
+      "conn_string": "dbname=gis_db user=postgres port=5433 host=localhost"
+    }
+  ],
+  "target_table": "public.road_inventory",
+  "stage_table": "public.road_inventory_stage",
+  "ogr2ogr_path": "C:\\Program Files\\QGIS 3.40.9\\bin\\ogr2ogr.exe",
+  "rbis_data_dir": "E:\\Work\\App Projects\\context\\Projects\\RBIS-cebu-city\\data"
+}
